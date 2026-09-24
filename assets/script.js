@@ -49,6 +49,10 @@ function saveCart() {
 }
 
 function requireCustomerForCart() {
+    if (document.body.dataset.staticDemo === "1") {
+        return true;
+    }
+
     if (customerLoggedIn) {
         return true;
     }
@@ -207,6 +211,11 @@ cartItems?.addEventListener("click", (event) => {
 cartCheckout?.addEventListener("click", () => {
     if (cart.length === 0) {
         showToast("กรุณาเพิ่มสินค้าลงตะกร้าก่อน");
+        return;
+    }
+
+    if (document.body.dataset.staticDemo === "1") {
+        showToast("นี่คือหน้าเว็บตัวอย่าง ระบบสั่งซื้อยังไม่เปิดใช้งาน");
         return;
     }
 
