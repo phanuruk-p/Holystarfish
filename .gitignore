@@ -1,0 +1,4 @@
+/data/*.sqlite*
+/data/sessions/
+/data/smtp.local.php*
+/.env

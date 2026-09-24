@@ -1,0 +1,4 @@
+PHPMailer 7.1.1
+Source: https://github.com/PHPMailer/PHPMailer/tree/v7.1.1
+Files: src/PHPMailer.php, src/SMTP.php, src/Exception.php, LICENSE
+License: LGPL-2.1 (see LICENSE)

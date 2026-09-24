@@ -1,0 +1,34 @@
+<?php
+declare(strict_types=1);
+ob_start();
+putenv('HOLYSTARFISH_DB_PATH=:memory:');
+require __DIR__.'/../includes/order-email.php';
+function verifyOrderMail(bool $ok,string $label): void {if(!$ok)throw new RuntimeException($label);echo "PASS $label\n";}
+$pdo=db();
+$pdo->exec("INSERT INTO customers(full_name,email,phone,password_hash) VALUES ('ลูกค้า ตัวอย่าง','order@example.test','0800000000','unused'),('Other','other@example.test','0800000001','unused')");
+$input=['recipient'=>'ลูกค้า ตัวอย่าง','phone'=>'0800000000','address'=>"123 ถนนตัวอย่าง\nขอนแก่น 40000",'payment'=>'bank'];
+$cart=[['id'=>'starfish-gold-pendant','quantity'=>2],['id'=>'pearl-tide-earrings','quantity'=>1]];
+$id=placeOrder($pdo,1,'email-order-1',$cart,$input);
+$row=$pdo->query('SELECT * FROM order_email_outbox')->fetch();
+$snapshot=json_decode($row['payload_json'],true);
+verifyOrderMail($snapshot['subtotal']===2870&&$snapshot['vat']===201&&$snapshot['total']===3071,'saved subtotal VAT and total');
+verifyOrderMail($snapshot['discount']===0&&$snapshot['shipping']===0,'explicit discount and shipping');
+$html=renderOrderEmail($snapshot,'http://localhost:8000');
+foreach(['HS-000001','VAT 7%','201.00','3,071.00','ส่วนลด','ค่าจัดส่ง','จำนวน 2 ชิ้น','ราคาต่อชิ้น','วันที่สั่งซื้อ','ไม่ใช่หลักฐานการรับชำระเงิน']as$text)verifyOrderMail(str_contains($html,$text),'email field '.$text);
+$config=['email'=>'sender@gmail.com','password'=>'abcdefghijklmnop','site_url'=>'http://localhost:8000'];
+$calls=0;
+$transport=function($mail)use(&$calls){$calls++;verifyOrderMail($mail->getToAddresses()[0][0]==='order@example.test','recipient from order snapshot');verifyOrderMail(str_contains($mail->Body,'src="cid:'),'inline images');};
+verifyOrderMail(deliverOrderEmail($id,2,$transport,$config)==='missing'&&$calls===0,'other customer cannot send');
+verifyOrderMail(deliverOrderEmail($id,1,$transport,[])==='not_configured','missing settings does not fail order');
+$pdo->exec("UPDATE customers SET email='changed@example.test' WHERE id=1");
+verifyOrderMail(deliverOrderEmail($id,1,$transport,$config)==='sent','send confirmed');
+verifyOrderMail(placeOrder($pdo,1,'email-order-1',$cart,$input)===$id,'checkout retry returns same order');
+verifyOrderMail(deliverOrderEmail($id,1,$transport,$config)==='sent'&&$calls===1,'checkout retry does not resend');
+$id2=placeOrder($pdo,1,'email-order-2',$cart,$input);
+verifyOrderMail(deliverOrderEmail($id2,1,function(){throw new RuntimeException('timeout');},$config)==='unknown','timeout keeps saved order');
+verifyOrderMail(deliverOrderEmail($id2,1,$transport,$config)==='unknown','uncertain delivery not retried');
+verifyOrderMail((int)$pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn()===2,'orders retained');
+$bad=$snapshot;$bad['full_name']='<script>alert(1)</script>';
+verifyOrderMail(!str_contains(renderOrderEmail($bad,'http://localhost:8000'),'<script>'),'customer text escaped');
+if(in_array('--preview',$argv,true))file_put_contents(__DIR__.'/../assets/order-email-preview.html',$html);
+echo "Order email tests passed. No real emails sent.\n";
