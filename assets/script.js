@@ -142,6 +142,74 @@ function renderCart() {
     cartTotal.textContent = formatBaht(total);
 }
 
+function addStaticCatalogProducts() {
+    if (document.body.dataset.staticDemo !== "1") return;
+
+    const productGrid = document.querySelector(".product-grid");
+    if (!productGrid) return;
+
+    const renderedNames = new Set(Array.from(productGrid.querySelectorAll(".product-card"), (card) => card.dataset.name));
+    currentCatalog.filter((product) => !renderedNames.has(product.name)).forEach((product) => {
+        const card = document.createElement("article");
+        card.className = "product-card";
+        Object.assign(card.dataset, {
+            legacyName: product.legacy_name || "",
+            name: product.name,
+            type: product.type,
+            price: product.price,
+            priceValue: product.price_value,
+            image: product.image,
+            badge: product.badge,
+            detail: product.detail,
+        });
+
+        const imageButton = document.createElement("button");
+        imageButton.className = "product-image product-open";
+        imageButton.type = "button";
+        imageButton.setAttribute("aria-label", `ดูรายละเอียด ${product.name}`);
+        const image = document.createElement("img");
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.width = 1000;
+        image.height = 1000;
+        image.src = product.image;
+        image.alt = product.name;
+        const badge = document.createElement("span");
+        badge.textContent = product.badge;
+        imageButton.append(image, badge);
+
+        const info = document.createElement("div");
+        info.className = "product-info";
+        const type = document.createElement("p");
+        type.textContent = product.type;
+        const title = document.createElement("button");
+        title.className = "product-title product-open";
+        title.type = "button";
+        const heading = document.createElement("h3");
+        heading.textContent = product.name;
+        title.append(heading);
+        const row = document.createElement("div");
+        row.className = "product-row";
+        const price = document.createElement("strong");
+        price.textContent = product.price;
+        const add = document.createElement("button");
+        add.className = "icon-button add-to-cart";
+        add.type = "button";
+        add.textContent = "+";
+        add.setAttribute("aria-label", `เพิ่ม ${product.name} ลงตะกร้า`);
+        row.append(price, add);
+        const detail = document.createElement("button");
+        detail.className = "view-detail product-open";
+        detail.type = "button";
+        detail.innerHTML = "ดูรายละเอียด <span aria-hidden=\"true\">→</span>";
+        info.append(type, title, row, detail);
+        card.append(imageButton, info);
+        productGrid.append(card);
+    });
+}
+
+addStaticCatalogProducts();
+
 document.querySelectorAll(".product-open").forEach((button) => {
     button.addEventListener("click", () => {
         const product = button.closest(".product-card");
